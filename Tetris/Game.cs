@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace Tetris
@@ -10,15 +11,14 @@ namespace Tetris
         private readonly Random random = new Random();
 
         private readonly ElementArray[,] arrFigure = new ElementArray[countRow, countCol];
-        private readonly bool[,] arrFigureTemp = new bool[countRow, countCol];
 
         private readonly int recWidth;
         private readonly int recHeight;
         private const int countCol = 10, countRow = 20;
         private int score;
 
-        private Point[] points = new Point[4];
-        private Point[] pastPoints = new Point[4];
+        private readonly Point[] points = new Point[4];
+        private readonly Point[] pastPoints = new Point[4];
 
         private IFigure figure;
 
@@ -39,13 +39,8 @@ namespace Tetris
 
         public void TimerTick(object sender, EventArgs e)
         {
-            arrFigureTemp[pastPoints[0].Y, pastPoints[0].X] = false;
-            arrFigureTemp[pastPoints[1].Y, pastPoints[1].X] = false;
-            arrFigureTemp[pastPoints[2].Y, pastPoints[2].X] = false;
-            arrFigureTemp[pastPoints[3].Y, pastPoints[3].X] = false;
-
-            if (points[3].X != pastPoints[3].X || OutOfY(points) 
-                && !CheckBelowPoints(figure.GetLowPoints(pastPoints)))
+            if (points[3].X != pastPoints[3].X || OutOfY(points) && 
+                !CheckBelowPoints(figure.GetLowPoints(pastPoints)))
             {
                 if (points[3].X == pastPoints[3].X)
                 {
@@ -54,11 +49,6 @@ namespace Tetris
                     points[2].Y++;
                     points[3].Y++;
                 }
-
-                arrFigureTemp[points[0].Y, points[0].X] = true;
-                arrFigureTemp[points[1].Y, points[1].X] = true;
-                arrFigureTemp[points[2].Y, points[2].X] = true;
-                arrFigureTemp[points[3].Y, points[3].X] = true;
 
                 Repaint();
 
@@ -70,10 +60,10 @@ namespace Tetris
             else
             {
                 timer.Stop();
-                for (var i = 0; i < pastPoints.Length; i++)
+                foreach (var p in pastPoints)
                 {
-                    arrFigure[pastPoints[i].Y, pastPoints[i].X].Status = true;
-                    arrFigure[pastPoints[i].Y, pastPoints[i].X].Brush = brush;
+                    arrFigure[p.Y, p.X].Status = true;
+                    arrFigure[p.Y, p.X].Brush = brush;
                 }
 
                 score += 10;
@@ -88,40 +78,37 @@ namespace Tetris
 
         private bool CheckEndOfGame(Point[] point)
         {
-            for (var k = 0; k < point.Length; k++)
+            if (point.Any(p => arrFigure[p.Y, p.X].Status))
             {
-                if (arrFigure[point[k].Y, point[k].X].Status)
+                string text;
+                if (Properties.Settings.Default.HighScore < score)
                 {
-                    string text;
-                    if (Properties.Settings.Default.HighScore < score)
-                    {
-                        Properties.Settings.Default.HighScore = score;
-                        Properties.Settings.Default.Save();
-                        text = "NEW HIGHSCORE!!! \n" + "Your results: " + score + " scores";
-                    }
-                    else
-                    {
-                        text = "Your results: " + score + " scores \n" + 
-                            "HighScore: " + Properties.Settings.Default.HighScore + " scores";
-                    }
+                    Properties.Settings.Default.HighScore = score;
+                    Properties.Settings.Default.Save();
+                    text = "NEW HIGHSCORE!!! \n" + "Your results: " + score + " scores";
+                }
+                else
+                {
+                    text = "Your results: " + score + " scores \n" + 
+                           "HighScore: " + Properties.Settings.Default.HighScore + " scores";
+                }
 
-                    MessageBox.Show(text, "Game Over!", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(text, "Game Over!", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                    for (var i = 0; i < countRow; i++)
+                for (var i = 0; i < countRow; i++)
+                {
+                    for (var j = 0; j < countCol; j++)
                     {
-                        for (var j = 0; j < countCol; j++)
+                        if (arrFigure[i, j].Status)
                         {
-                            if (arrFigure[i, j].Status)
-                            {
-                                bufferedGraphics.Graphics.FillRectangle(SystemBrushes.Control,
-                                    j * recWidth + 2, i * recHeight + 2, recWidth - 3, recHeight - 3);
-                            }
+                            bufferedGraphics.Graphics.FillRectangle(SystemBrushes.Control,
+                                j * recWidth + 2, i * recHeight + 2, recWidth - 3, recHeight - 3);
                         }
                     }
-
-                    bufferedGraphics.Render();
-                    return true;
                 }
+
+                bufferedGraphics.Render();
+                return true;
             }
 
             return false;
@@ -135,33 +122,25 @@ namespace Tetris
 
         private void CheckLines(Point[] point)
         {
-            var max = point[0].Y;
-            var min = point[0].Y;
-
-            for (var i = 1; i < point.Length; i++)
-            {
-                if (point[i].Y > max)
-                    max = point[i].Y;
-
-                if (point[i].Y < min)
-                    min = point[i].Y;
-            }
+            var pointY = point.Select(x => x.Y).ToArray();
+            var max = pointY.Max();
+            var min = pointY.Min();
 
             for (var i = max; i >= min; i--)
             {
-                var removeTheLine = false;
+                var removeLine = false;
                 for (var j = 0; j < countCol; j++)
                 {
                     if (!arrFigure[i, j].Status)
                     {
-                        removeTheLine = false;
+                        removeLine = false;
                         break;
                     }
 
-                    removeTheLine = true;
+                    removeLine = true;
                 }
 
-                if (removeTheLine)
+                if (removeLine)
                 {
                     var numberLine = i;
                     for (var j = 0; j < countCol; j++)
@@ -207,13 +186,19 @@ namespace Tetris
                 bufferedGraphics.Render();
 
                 if (numberLine - 1 == 0)
+                {
                     return;
+                }
+
                 numberLine--;
                 var countElements = 0;
                 for (var i = 0; i < countCol; i++)
                 {
                     if (arrFigure[numberLine - 1, i].Status)
+                    {
                         break;
+                    }
+
                     countElements++;
                 }
 
@@ -235,13 +220,7 @@ namespace Tetris
 
         private bool CheckBelowPoints(Point[] point)
         {
-            foreach (var p in point)
-            {
-                if (arrFigure[p.Y + 1, p.X ].Status)
-                    return true;
-            }
-
-            return false;
+            return point.Any(p => arrFigure[p.Y + 1, p.X].Status);
         }
 
         private void Repaint()
@@ -299,18 +278,16 @@ namespace Tetris
             }
 
             if (CheckEndOfGame(figure.GetPoints()))
-                return;
-
-            for (var i = 0; i < points.Length; i++)
             {
-                points[i] = figure.GetPoints()[i];
-                pastPoints[i] = figure.GetPoints()[i];
+                return;
             }
 
-            arrFigureTemp[points[0].Y, points[0].X] = true;
-            arrFigureTemp[points[1].Y, points[1].X] = true;
-            arrFigureTemp[points[2].Y, points[2].X] = true;
-            arrFigureTemp[points[3].Y, points[3].X] = true;
+            var figurePoints = figure.GetPoints();
+            for (var i = 0; i < points.Length; i++)
+            {
+                points[i] = figurePoints[i];
+                pastPoints[i] = figurePoints[i];
+            }
 
             Repaint();
 
@@ -353,65 +330,40 @@ namespace Tetris
 
         private bool CheckRightPoints(Point[] point)
         {
-            foreach (var p in point)
-            {
-                if (arrFigure[p.Y , p.X + 1].Status)
-                    return true;
-            }
-
-            return false;
+            return point.Any(p => arrFigure[p.Y, p.X + 1].Status);
         }
 
         private bool CheckLeftPoints(Point[] point)
         {
-            foreach (var p in point)
-            {
-                if (arrFigure[p.Y, p.X - 1].Status)
-                    return true;
-            }
-
-            return false;
+            return point.Any(p => arrFigure[p.Y, p.X - 1].Status);
         }
 
         private bool OutOfY(Point[] point)
         {
-            if (point[0].Y < countRow - 1 && point[1].Y < countRow - 1 &&
-                point[2].Y < countRow - 1 && point[3].Y < countRow - 1 &&
-                point[0].Y >= 0 && point[1].Y >= 0 &&
-                point[2].Y >= 0 && point[3].Y >= 0)
-            {
-                return true;
-            }
-
-            return false;
+            return point[0].Y < countRow - 1 && point[1].Y < countRow - 1 &&
+                   point[2].Y < countRow - 1 && point[3].Y < countRow - 1 &&
+                   point[0].Y >= 0 && point[1].Y >= 0 &&
+                   point[2].Y >= 0 && point[3].Y >= 0;
         }
 
         private bool OutOfXRight(Point[] point)
         {
-            if (point[0].X < countCol - 1 && point[1].X < countCol - 1 &&
-                point[2].X < countCol - 1 && point[3].X < countCol - 1)
-            {
-                return true;
-            }
-
-            return false;
+            return point[0].X < countCol - 1 && point[1].X < countCol - 1 &&
+                   point[2].X < countCol - 1 && point[3].X < countCol - 1;
         }
 
         private bool OutOfXLeft(Point[] point)
-        {        
-            if (point[0].X > 0 && point[1].X > 0 &&
-                point[2].X > 0 && point[3].X > 0)
-            {
-                return true;
-            }
-
-            return false;
+        {
+            return point[0].X > 0 && point[1].X > 0 &&
+                   point[2].X > 0 && point[3].X > 0;
         }
 
         public void Rotation()
         {
             if (figure is FigureSquare)
+            {
                 return;
+            }
 
             var pointsTemp = figure.Rotation(points);
             if (OutOfY(pointsTemp) && AbilityToRotate(pointsTemp) && 
@@ -428,23 +380,7 @@ namespace Tetris
 
         private bool AbilityToRotate(Point[] point)
         {
-            for (var i = 0; i < point.Length; i++)
-            {
-                if (point[i].X >= countCol)
-                {
-                    return false;
-                }
-
-                if (point[i].X < 0)
-                {
-                    return false;
-                }
-
-                if (arrFigure[point[i].Y, point[i].X].Status)
-                    return false;
-            }
-
-            return true;
+            return point.All(p => p.X < countCol && p.X >= 0 && !arrFigure[p.Y, p.X].Status);
         }
     }
 }

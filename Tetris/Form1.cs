@@ -1,11 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace Tetris
@@ -23,15 +17,15 @@ namespace Tetris
             }
         }
 
-        Game game;
+        private Game game;
 
-        Graphics graphics;
-        BufferedGraphicsContext bufferedGraphicsContext;
-        BufferedGraphics bufferedGraphics;
+        private Graphics graphics;
+        private BufferedGraphicsContext bufferedGraphicsContext;
+        private BufferedGraphics bufferedGraphics;
 
-        int rec_Width;
-        int rec_Height;
-        const int count_X = 10, count_Y = 20;
+        private int recWidth;
+        private int recHeight;
+        private const int countX = 10, countY = 20;
 
         private void InitializeGraphics()
         {
@@ -40,59 +34,65 @@ namespace Tetris
             bufferedGraphics = bufferedGraphicsContext.Allocate(graphics, new Rectangle(0, 0, 
                 panel1.Size.Width, panel1.Size.Height));
 
-            Pen p = new Pen(Color.Black);
-            rec_Width = panel1.Width / count_X;
-            rec_Height = panel1.Height / count_Y;
+            var p = new Pen(Color.Black);
+            recWidth = panel1.Width / countX;
+            recHeight = panel1.Height / countY;
             bufferedGraphics.Graphics.Clear(BackColor);
-            for (int i = 0; i <= panel1.Width; i += rec_Width)
-                for (int j = 0; j <= panel1.Height; j += rec_Height)
+            for (var i = 0; i <= panel1.Width; i += recWidth)
+            {
+                for (var j = 0; j <= panel1.Height; j += recHeight)
                 {
-                    bufferedGraphics.Graphics.DrawRectangle(p, i, j, rec_Width, rec_Height);
+                    bufferedGraphics.Graphics.DrawRectangle(p, i, j, recWidth, recHeight);
                 }
+            }
 
             bufferedGraphics.Render();
         }
 
-        private void start_button_Click(object sender, EventArgs e)
+        private void StartButtonClick(object sender, EventArgs e)
         {
-            game = new Game(bufferedGraphics, rec_Width, rec_Height);
-            game.ScoreInForm += game_ScoreInForm;
+            game = new Game(bufferedGraphics, recWidth, recHeight);
+            game.ScoreInForm += GameScoreInForm;
             game.Start();
             this.Focus();
             start_button.Enabled = false;
         }
 
-        void game_ScoreInForm(object sender, EventArgs e)
+        private void GameScoreInForm(object sender, EventArgs e)
         {
             if (e is ScoreEventArgs)
             {
-                ScoreEventArgs scoreEventArgs = e as ScoreEventArgs;
+                var scoreEventArgs = e as ScoreEventArgs;
                 score.Text = scoreEventArgs.Score.ToString();
             }
         }
 
-        private void Form1_KeyDown(object sender, KeyEventArgs e)
+        private void Form1KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.KeyCode == Keys.Right || e.KeyCode == Keys.Left)
-                game.Moving(e.KeyCode);
-
-            if (e.KeyCode == Keys.Up)
-                game.Rotation();
-
-            if (e.KeyCode == Keys.Down)
-                game.RapidLowering(true);
+            switch (e.KeyCode)
+            {
+                case Keys.Right:
+                case Keys.Left:
+                    game.Moving(e.KeyCode);
+                    break;
+                case Keys.Up:
+                    game.Rotation();
+                    break;
+                case Keys.Down:
+                    game.RapidLowering(true);
+                    break;
+            }
         }
 
-        private void panel1_Paint(object sender, PaintEventArgs e)
+        private void Panel1Paint(object sender, PaintEventArgs e)
         {
             InitializeGraphics();
         }
 
-        private void Form1_KeyUp(object sender, KeyEventArgs e)
+        private void Form1KeyUp(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Down)
                 game.RapidLowering(false);
         }
-
     }
 }

@@ -45,13 +45,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ElementArray.cs" />
-    <Compile Include="Figure_J.cs" />
-    <Compile Include="Figure_L.cs" />
-    <Compile Include="Figure_Line.cs" />
-    <Compile Include="Figure_S.cs" />
-    <Compile Include="Figure_Square.cs" />
-    <Compile Include="Figure_T.cs" />
-    <Compile Include="Figure_Z.cs" />
+    <Compile Include="Figure.cs" />
+    <Compile Include="FigureJ.cs" />
+    <Compile Include="FigureL.cs" />
+    <Compile Include="FigureLine.cs" />
+    <Compile Include="FigureS.cs" />
+    <Compile Include="FigureSquare.cs" />
+    <Compile Include="FigureT.cs" />
+    <Compile Include="FigureZ.cs" />
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>
     </Compile>

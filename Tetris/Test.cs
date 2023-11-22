@@ -1,35 +1,25 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.IO;
+﻿using System.IO;
 
 namespace Tetris
 {
-    class Test
+    public class Test
     {
         public static void TestFigures(object figures)
         {
             ElementArray[,] arrFigure = figures as ElementArray[,];
 
-            using (StreamWriter sw = new StreamWriter(@"test.txt", true))
+            using (var sw = new StreamWriter(@"test.txt", true))
             {
-                for (int i = 0; i < 20; i++)
+                for (var i = 0; i < 20; i++)
                 {
-                    for (int j = 0; j < 10; j++)
+                    for (var j = 0; j < 10; j++)
                     {
-                        if (arrFigure[i, j].Status)
-                        {
-                            sw.Write("X ");
-                        }
-                        else
-                        {
-                            sw.Write("O ");
-                        }
+                        sw.Write(arrFigure != null && arrFigure[i, j].Status ? "X " : "O ");
                     }
+
                     sw.WriteLine();
                 }
+
                 sw.WriteLine();
             }
         }

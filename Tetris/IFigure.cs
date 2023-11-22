@@ -1,21 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Drawing;
 
 namespace Tetris
 {
     interface IFigure
     {
-        Point[] GetPints();
+        Point[] GetPoints();
 
         Point[] GetLowPoints(Point[] point);
 
-        Point[] GetTheRightPoints(Point[] point);
+        Point[] GetRightPoints(Point[] point);
 
-        Point[] GetTheLeftPoints(Point[] point);
+        Point[] GetLeftPoints(Point[] point);
 
         Point[] Rotation(Point[] point);
     }

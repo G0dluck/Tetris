@@ -1,57 +1,53 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace Tetris
 {
-    class Game
+    public class Game
     {
-        System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
-        Random random = new Random();
+        private readonly Timer timer = new Timer();
+        private readonly Random random = new Random();
 
-        ElementArray[,] arrFigure = new ElementArray[count_Row, count_Col];
-        bool[,] arrFigureTemp = new bool[count_Row, count_Col];
+        private readonly ElementArray[,] arrFigure = new ElementArray[countRow, countCol];
+        private readonly bool[,] arrFigureTemp = new bool[countRow, countCol];
 
-        int rec_Width;
-        int rec_Height;
-        const int count_Col = 10, count_Row = 20;
-        int score;
+        private readonly int recWidth;
+        private readonly int recHeight;
+        private const int countCol = 10, countRow = 20;
+        private int score;
 
-        Point[] points = new Point[4];
-        Point[] past_Points = new Point[4];
+        private Point[] points = new Point[4];
+        private Point[] pastPoints = new Point[4];
 
-        IFigure figure;
+        private IFigure figure;
 
-        BufferedGraphics bufferedGraphics;
-        Brush brush;
+        private readonly BufferedGraphics bufferedGraphics;
+        private Brush brush;
 
         public event EventHandler ScoreInForm;
 
         public Game(BufferedGraphics bufferedGraphics, int rec_Width, int rec_Height)
         {
             timer.Interval = 500;
-            timer.Tick += timer_Tick;
+            timer.Tick += TimerTick;
 
             this.bufferedGraphics = bufferedGraphics;
-            this.rec_Width = rec_Width;
-            this.rec_Height = rec_Height;
+            this.recWidth = rec_Width;
+            this.recHeight = rec_Height;
         }
 
-        void timer_Tick(object sender, EventArgs e)
+        public void TimerTick(object sender, EventArgs e)
         {
-            arrFigureTemp[past_Points[0].Y, past_Points[0].X] = false;
-            arrFigureTemp[past_Points[1].Y, past_Points[1].X] = false;
-            arrFigureTemp[past_Points[2].Y, past_Points[2].X] = false;
-            arrFigureTemp[past_Points[3].Y, past_Points[3].X] = false;
+            arrFigureTemp[pastPoints[0].Y, pastPoints[0].X] = false;
+            arrFigureTemp[pastPoints[1].Y, pastPoints[1].X] = false;
+            arrFigureTemp[pastPoints[2].Y, pastPoints[2].X] = false;
+            arrFigureTemp[pastPoints[3].Y, pastPoints[3].X] = false;
 
-            if (points[3].X != past_Points[3].X || OutOfTheY(points) 
-                && !CheckBelowPoints(figure.GetLowPoints(past_Points)))
+            if (points[3].X != pastPoints[3].X || OutOfY(points) 
+                && !CheckBelowPoints(figure.GetLowPoints(pastPoints)))
             {
-                if (points[3].X == past_Points[3].X)
+                if (points[3].X == pastPoints[3].X)
                 {
                     points[0].Y++;
                     points[1].Y++;
@@ -64,34 +60,35 @@ namespace Tetris
                 arrFigureTemp[points[2].Y, points[2].X] = true;
                 arrFigureTemp[points[3].Y, points[3].X] = true;
 
-                repaint(past_Points, points);
+                Repaint();
 
-                for (int i = 0; i < points.Length; i++)
+                for (var i = 0; i < points.Length; i++)
                 {
-                    past_Points[i] = points[i];
+                    pastPoints[i] = points[i];
                 }
             }
             else
             {
                 timer.Stop();
-                for (int i = 0; i < past_Points.Length; i++)
+                for (var i = 0; i < pastPoints.Length; i++)
                 {
-                    arrFigure[past_Points[i].Y, past_Points[i].X].Status = true;
-                    arrFigure[past_Points[i].Y, past_Points[i].X].Brush = brush;
+                    arrFigure[pastPoints[i].Y, pastPoints[i].X].Status = true;
+                    arrFigure[pastPoints[i].Y, pastPoints[i].X].Brush = brush;
                 }
+
                 score += 10;
                 OnScoreInForm(new ScoreEventArgs(score));
 
-                CheckLines(past_Points);
+                CheckLines(pastPoints);
                 /*Thread t = new Thread(Test.TestFigures);
                 t.Start(arrFigure);*/
                 Start();
             }
         }
 
-        private bool CheckTheEndOfTheGame(Point[] point)
+        private bool CheckEndOfGame(Point[] point)
         {
-            for (int k = 0; k < point.Length; k++)
+            for (var k = 0; k < point.Length; k++)
             {
                 if (arrFigure[point[k].Y, point[k].X].Status)
                 {
@@ -107,41 +104,41 @@ namespace Tetris
                         text = "Your results: " + score + " scores \n" + 
                             "HighScore: " + Properties.Settings.Default.HighScore + " scores";
                     }
-                    System.Windows.Forms.MessageBox.Show(text, "Game Over!", 
-                        System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Information);
 
-                    for (int i = 0; i < count_Row; i++)
+                    MessageBox.Show(text, "Game Over!", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    for (var i = 0; i < countRow; i++)
                     {
-                        for (int j = 0; j < count_Col; j++)
+                        for (var j = 0; j < countCol; j++)
                         {
                             if (arrFigure[i, j].Status)
                             {
                                 bufferedGraphics.Graphics.FillRectangle(SystemBrushes.Control,
-                                    j * rec_Width + 2, i * rec_Height + 2, rec_Width - 3, rec_Height - 3);
+                                    j * recWidth + 2, i * recHeight + 2, recWidth - 3, recHeight - 3);
                             }
                         }
                     }
+
                     bufferedGraphics.Render();
                     return true;
                 }
             }
+
             return false;
         }
 
         public void OnScoreInForm(ScoreEventArgs e)
         {
-            EventHandler scoreInFrom = ScoreInForm;
-            if (scoreInFrom != null)
-                scoreInFrom(this, e);
+            var scoreInFrom = ScoreInForm;
+            scoreInFrom?.Invoke(this, e);
         }
 
         private void CheckLines(Point[] point)
         {
-            int max = point[0].Y;
-            int min = point[0].Y;
-            int numberLine = 0;
+            var max = point[0].Y;
+            var min = point[0].Y;
 
-            for (int i = 1; i < point.Length; i++)
+            for (var i = 1; i < point.Length; i++)
             {
                 if (point[i].Y > max)
                     max = point[i].Y;
@@ -150,27 +147,30 @@ namespace Tetris
                     min = point[i].Y;
             }
 
-            for (int i = max; i >= min; i--)
+            for (var i = max; i >= min; i--)
             {
-                bool removeTheLine = false;
-                for (int j = 0; j < count_Col; j++)
+                var removeTheLine = false;
+                for (var j = 0; j < countCol; j++)
                 {
                     if (!arrFigure[i, j].Status)
                     {
                         removeTheLine = false;
                         break;
                     }
+
                     removeTheLine = true;
                 }
+
                 if (removeTheLine)
                 {
-                    numberLine = i;
-                    for (int j = 0; j < count_Col; j++)
+                    var numberLine = i;
+                    for (var j = 0; j < countCol; j++)
                     {
                         arrFigure[i, j].Status = false;
                         bufferedGraphics.Graphics.FillRectangle(SystemBrushes.Control,
-                            j * rec_Width + 2, i * rec_Height + 2, rec_Width - 3, rec_Height - 3);
+                            j * recWidth + 2, i * recHeight + 2, recWidth - 3, recHeight - 3);
                     }
+
                     bufferedGraphics.Render();
                     DownwardShift(numberLine);
                     i++;
@@ -178,21 +178,21 @@ namespace Tetris
                     score += 100;
                     OnScoreInForm(new ScoreEventArgs(score));
                 }
-            }       
+            }
         }
 
         private void DownwardShift(int numberLine)
         {
             while (numberLine > 0)
             {
-                for (int i = 0; i < count_Col; i++)
+                for (var i = 0; i < countCol; i++)
                 {
                     if (arrFigure[numberLine - 1, i].Status)
                     {
                         arrFigure[numberLine, i].Status = true;
                         arrFigure[numberLine, i].Brush = arrFigure[numberLine - 1, i].Brush;
                         bufferedGraphics.Graphics.FillRectangle(arrFigure[numberLine - 1, i].Brush,
-                        i * rec_Width + 2, numberLine * rec_Height + 2, rec_Width - 3, rec_Height - 3);
+                        i * recWidth + 2, numberLine * recHeight + 2, recWidth - 3, recHeight - 3);
                     }
 
                     if (!arrFigure[numberLine - 1, i].Status && arrFigure[numberLine, i].Status)
@@ -200,31 +200,33 @@ namespace Tetris
                         arrFigure[numberLine, i].Status = false;
                         arrFigure[numberLine, i].Brush = SystemBrushes.Control;
                         bufferedGraphics.Graphics.FillRectangle(SystemBrushes.Control,
-                                i * rec_Width + 2, numberLine * rec_Height + 2, rec_Width - 3, rec_Height - 3);
+                                i * recWidth + 2, numberLine * recHeight + 2, recWidth - 3, recHeight - 3);
                     }
                 }
+
                 bufferedGraphics.Render();
 
                 if (numberLine - 1 == 0)
                     return;
                 numberLine--;
-                int countElements = 0;
-                for (int i = 0; i < count_Col; i++)
+                var countElements = 0;
+                for (var i = 0; i < countCol; i++)
                 {
                     if (arrFigure[numberLine - 1, i].Status)
                         break;
                     countElements++;
                 }
 
-                if (countElements == count_Col)
+                if (countElements == countCol)
                 {
-                    for (int i = 0; i < count_Col; i++)
+                    for (var i = 0; i < countCol; i++)
                     {
                         arrFigure[numberLine, i].Status = false;
                         arrFigure[numberLine, i].Brush = SystemBrushes.Control;
                         bufferedGraphics.Graphics.FillRectangle(SystemBrushes.Control,
-                                i * rec_Width + 2, numberLine * rec_Height + 2, rec_Width - 3, rec_Height - 3);
+                                i * recWidth + 2, numberLine * recHeight + 2, recWidth - 3, recHeight - 3);
                     }
+
                     bufferedGraphics.Render();
                     return;
                 }
@@ -233,34 +235,28 @@ namespace Tetris
 
         private bool CheckBelowPoints(Point[] point)
         {
-            foreach (var p in points)
+            foreach (var p in point)
             {
                 if (arrFigure[p.Y + 1, p.X ].Status)
                     return true;
             }
+
             return false;
         }
 
-        private void repaint(Point[] pastPoints, Point[] currentPoints)
+        private void Repaint()
         {
-            System.Collections.IEnumerator past = pastPoints.GetEnumerator();
-            System.Collections.IEnumerator current = currentPoints.GetEnumerator();
-
-            while (past.MoveNext())
+            foreach (var point in pastPoints)
             {
-                Point point = (Point)past.Current;
-
                 bufferedGraphics.Graphics.FillRectangle(SystemBrushes.Control, 
-                    point.X * rec_Width + 2, point.Y * rec_Height + 2, rec_Width - 3, rec_Height - 3);
+                    point.X * recWidth + 2, point.Y * recHeight + 2, recWidth - 3, recHeight - 3);
                 //bufferedGraphics.Graphics.DrawRectangle(new Pen(Color.Black), point.X * rec_Width, point.Y * rec_Height, rec_Width, rec_Height);
             }
 
-            while (current.MoveNext())
+            foreach (var point in points)
             {
-                Point point = (Point)current.Current;
-
                 bufferedGraphics.Graphics.FillRectangle(brush, 
-                    point.X * rec_Width + 2, point.Y * rec_Height + 2, rec_Width - 3, rec_Height - 3);
+                    point.X * recWidth + 2, point.Y * recHeight + 2, recWidth - 3, recHeight - 3);
             }
 
             bufferedGraphics.Render();
@@ -268,49 +264,47 @@ namespace Tetris
 
         public void Start()
         {
-            int random_figure = random.Next(0, 7);
+            var randomfigure = random.Next(0, 7);
 
-            switch (random_figure)
+            switch (randomfigure)
             {
                 case 0:
-                    figure = new Figure_Square(count_Col, random.Next(0, count_Col - 1));
+                    figure = new FigureSquare(countCol, random.Next(0, countCol - 1));
                     brush = Brushes.DarkRed;
                     break;
                 case 1:
-                    figure = new Figure_Line(count_Col, random.Next(0, count_Col - 1), random.Next(0, 2));
+                    figure = new FigureLine(countCol, random.Next(0, countCol - 1), random.Next(0, 2));
                     brush = Brushes.Green;
                     break;
                 case 2:
-                    figure = new Figure_T(count_Col, random.Next(0, count_Col - 1), random.Next(0, 4));
+                    figure = new FigureT(countCol, random.Next(0, countCol - 1), random.Next(0, 4));
                     brush = Brushes.DarkViolet;
                     break;
                 case 3:
-                    figure = new Figure_J(count_Col, random.Next(0, count_Col - 1), random.Next(0, 4));
+                    figure = new FigureJ(countCol, random.Next(0, countCol - 1), random.Next(0, 4));
                     brush = Brushes.YellowGreen;
                     break;
                 case 4:
-                    figure = new Figure_L(count_Col, random.Next(0, count_Col - 1), random.Next(0, 4));
+                    figure = new FigureL(countCol, random.Next(0, countCol - 1), random.Next(0, 4));
                     brush = Brushes.Blue;
                     break;
                 case 5:
-                    figure = new Figure_S(count_Col, random.Next(0, count_Col - 1), random.Next(0, 4));
+                    figure = new FigureS(countCol, random.Next(0, countCol - 1), random.Next(0, 4));
                     brush = Brushes.Orange;
                     break;
                 case 6:
-                    figure = new Figure_Z(count_Col, random.Next(0, count_Col - 1), random.Next(0, 4));
+                    figure = new FigureZ(countCol, random.Next(0, countCol - 1), random.Next(0, 4));
                     brush = Brushes.Coral;
-                    break;
-                default:
                     break;
             }
 
-            if (CheckTheEndOfTheGame(figure.GetPints()))
+            if (CheckEndOfGame(figure.GetPoints()))
                 return;
 
-            for (int i = 0; i < points.Length; i++)
+            for (var i = 0; i < points.Length; i++)
             {
-                points[i] = figure.GetPints()[i];
-                past_Points[i] = figure.GetPints()[i];
+                points[i] = figure.GetPoints()[i];
+                pastPoints[i] = figure.GetPoints()[i];
             }
 
             arrFigureTemp[points[0].Y, points[0].X] = true;
@@ -318,123 +312,125 @@ namespace Tetris
             arrFigureTemp[points[2].Y, points[2].X] = true;
             arrFigureTemp[points[3].Y, points[3].X] = true;
 
-            repaint(past_Points, points);
+            Repaint();
 
             timer.Start();
         }
 
-        public void Moving(System.Windows.Forms.Keys e)
+        public void Moving(Keys e)
         {
-            if (e == System.Windows.Forms.Keys.Right && OutOfTheXRight(points)
-                && !CheckTheRightPoints(figure.GetTheRightPoints(past_Points)))
+            switch(e)
             {
-                //timer.Stop();
-                points[0].X++;
-                points[1].X++;
-                points[2].X++;
-                points[3].X++;
-                timer_Tick(new object(), new EventArgs());
-                //repaint();
-                //timer.Start();
-            }
-
-            if (e == System.Windows.Forms.Keys.Left && OutOfTheXLeft(points)
-                && !CheckTheLeftPoints(figure.GetTheLeftPoints(past_Points)))
-            {
-                //timer.Stop();
-                points[0].X--;
-                points[1].X--;
-                points[2].X--;
-                points[3].X--;
-                timer_Tick(new object(), new EventArgs());
-                //repaint();
-                //timer.Start();
+                case Keys.Right when OutOfXRight(points)
+                                     && !CheckRightPoints(figure.GetRightPoints(pastPoints)):
+                    //timer.Stop();
+                    points[0].X++;
+                    points[1].X++;
+                    points[2].X++;
+                    points[3].X++;
+                    TimerTick(new object(), EventArgs.Empty);
+                    //repaint();
+                    //timer.Start();
+                    break;
+                case Keys.Left when OutOfXLeft(points)
+                                    && !CheckLeftPoints(figure.GetLeftPoints(pastPoints)):
+                    //timer.Stop();
+                    points[0].X--;
+                    points[1].X--;
+                    points[2].X--;
+                    points[3].X--;
+                    TimerTick(new object(), EventArgs.Empty);
+                    //repaint();
+                    //timer.Start();
+                    break;
             }
         }
 
         public void RapidLowering(bool e)
         {
-            if (e)
-            {
-                timer.Interval = 75;
-            }
-            else
-            {
-                timer.Interval = 500;
-            }
+            timer.Interval = e ? 50 : 500;
         }
 
-        private bool CheckTheRightPoints(Point[] point)
+        private bool CheckRightPoints(Point[] point)
         {
             foreach (var p in point)
             {
                 if (arrFigure[p.Y , p.X + 1].Status)
                     return true;
             }
+
             return false;
         }
 
-        private bool CheckTheLeftPoints(Point[] point)
+        private bool CheckLeftPoints(Point[] point)
         {
             foreach (var p in point)
             {
                 if (arrFigure[p.Y, p.X - 1].Status)
                     return true;
             }
+
             return false;
         }
 
-        private bool OutOfTheY(Point[] point)
+        private bool OutOfY(Point[] point)
         {
-            if (point[0].Y < count_Row - 1 && point[1].Y < count_Row - 1 &&
-                point[2].Y < count_Row - 1 && point[3].Y < count_Row - 1 &&
+            if (point[0].Y < countRow - 1 && point[1].Y < countRow - 1 &&
+                point[2].Y < countRow - 1 && point[3].Y < countRow - 1 &&
                 point[0].Y >= 0 && point[1].Y >= 0 &&
                 point[2].Y >= 0 && point[3].Y >= 0)
             {
                 return true;
             }
+
             return false;
         }
 
-        private bool OutOfTheXRight(Point[] point)
+        private bool OutOfXRight(Point[] point)
         {
-            if (point[0].X < count_Col - 1 && point[1].X < count_Col - 1 &&
-                point[2].X < count_Col - 1 && point[3].X < count_Col - 1)
+            if (point[0].X < countCol - 1 && point[1].X < countCol - 1 &&
+                point[2].X < countCol - 1 && point[3].X < countCol - 1)
             {
                 return true;
             }
+
             return false;
         }
 
-        private bool OutOfTheXLeft(Point[] point)
+        private bool OutOfXLeft(Point[] point)
         {        
             if (point[0].X > 0 && point[1].X > 0 &&
                 point[2].X > 0 && point[3].X > 0)
             {
                 return true;
             }
+
             return false;
         }
 
         public void Rotation()
         {
-            if (figure is Figure_Square)
+            if (figure is FigureSquare)
                 return;
 
-            Point[] pointsTemp = figure.Rotation(points);
-            if (OutOfTheY(pointsTemp) && AbilityToRotate(pointsTemp) && 
+            var pointsTemp = figure.Rotation(points);
+            if (OutOfY(pointsTemp) && AbilityToRotate(pointsTemp) && 
                 !CheckBelowPoints(figure.GetLowPoints(pointsTemp)))
             {
-                points = pointsTemp;
-                timer_Tick(new object(), new EventArgs());
+                for (var i = 0; i < pointsTemp.Length; i++)
+                {
+                    points[i] = pointsTemp[i];
+                }
+
+                TimerTick(new object(), EventArgs.Empty);
             }
         }
 
         private bool AbilityToRotate(Point[] point)
         {
-            for (int i = 0; i < point.Length; i++)
+            for (var i = 0; i < point.Length; i++)
             {
-                if (point[i].X >= count_Col)
+                if (point[i].X >= countCol)
                 {
                     return false;
                 }
@@ -444,9 +440,10 @@ namespace Tetris
                     return false;
                 }
 
-                if (arrFigure[point[i].Y, point[i].X].Status == true)
+                if (arrFigure[point[i].Y, point[i].X].Status)
                     return false;
             }
+
             return true;
         }
     }

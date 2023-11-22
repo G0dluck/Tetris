@@ -40,7 +40,7 @@
             this.panel1.Name = "panel1";
             this.panel1.Size = new System.Drawing.Size(201, 401);
             this.panel1.TabIndex = 0;
-            this.panel1.Paint += new System.Windows.Forms.PaintEventHandler(this.panel1_Paint);
+            this.panel1.Paint += new System.Windows.Forms.PaintEventHandler(this.Panel1Paint);
             // 
             // start_button
             // 
@@ -50,7 +50,7 @@
             this.start_button.TabIndex = 1;
             this.start_button.Text = "Start";
             this.start_button.UseVisualStyleBackColor = true;
-            this.start_button.Click += new System.EventHandler(this.start_button_Click);
+            this.start_button.Click += new System.EventHandler(this.StartButtonClick);
             // 
             // label1
             // 
@@ -83,8 +83,8 @@
             this.KeyPreview = true;
             this.Name = "Form1";
             this.Text = "Tetris";
-            this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.Form1_KeyDown);
-            this.KeyUp += new System.Windows.Forms.KeyEventHandler(this.Form1_KeyUp);
+            this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.Form1KeyDown);
+            this.KeyUp += new System.Windows.Forms.KeyEventHandler(this.Form1KeyUp);
             this.ResumeLayout(false);
             this.PerformLayout();
 

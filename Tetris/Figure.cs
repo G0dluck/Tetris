@@ -6,15 +6,45 @@ namespace Tetris
     {
         protected Point[] GeneralPoints;
         protected int modeRotation;
+        private readonly int countX;
+        private readonly int positionX;
 
-        protected Figure(int rotation)
+        protected Figure(int countX, int x, int rotation)
         {
+            this.countX = countX;
+            this.positionX = x;
             this.modeRotation = rotation;
         }
+
+        protected Figure(int countX, int x)
+        {
+            this.countX = countX;
+            this.positionX = x;
+        }
+
+        public abstract Brush Brush { get; }
 
         public Point[] GetPoints()
         {
             return GeneralPoints;
+        }
+
+        public Point[] CorrectPoints()
+        {
+            var points = (Point[])GeneralPoints.Clone();
+            for (var i = 0; i < points.Length; i++)
+            {
+                points[i].X += positionX;
+                while (points[i].X >= countX)
+                {
+                    for (var j = 0; j < points.Length; j++)
+                    {
+                        points[j].X--;
+                    }
+                }
+            }
+
+            return points;
         }
 
         public abstract Point[] GetLowPoints(Point[] point);
@@ -24,20 +54,5 @@ namespace Tetris
         public abstract Point[] GetLeftPoints(Point[] point);
 
         public abstract Point[] Rotation(Point[] point);
-
-        protected void CorrectPoints(int countX, int x)
-        {
-            for (var i = 0; i < GeneralPoints.Length; i++)
-            {
-                GeneralPoints[i].X += x;
-                while (GeneralPoints[i].X >= countX)
-                {
-                    for (var j = 0; j < GeneralPoints.Length; j++)
-                    {
-                        GeneralPoints[j].X--;
-                    }
-                }
-            }
-        }
     }
 }

@@ -4,7 +4,7 @@ namespace Tetris
 {
     public class FigureSquare : Figure, IFigure
     {
-        public FigureSquare(int countX, int x) : base(0)
+        public FigureSquare(int countX, int x) : base(countX, x)
         {
             GeneralPoints = new[]
             {
@@ -13,9 +13,9 @@ namespace Tetris
                 new Point(1, 0),
                 new Point(1, 1)
             };
-
-            CorrectPoints(countX, x);
         }
+
+        public override Brush Brush => Brushes.DarkRed;
 
         public override Point[] GetLowPoints(Point[] point)
         {

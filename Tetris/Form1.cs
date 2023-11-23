@@ -21,7 +21,8 @@ namespace Tetris
 
         private Graphics graphics;
         private BufferedGraphicsContext bufferedGraphicsContext;
-        private BufferedGraphics bufferedGraphics;
+        private BufferedGraphics gameBufferedGraphics;
+        private BufferedGraphics nextBufferedGraphics;
 
         private int recWidth;
         private int recHeight;
@@ -31,27 +32,41 @@ namespace Tetris
         {
             graphics = Graphics.FromHwnd(panel1.Handle);
             bufferedGraphicsContext = new BufferedGraphicsContext();
-            bufferedGraphics = bufferedGraphicsContext.Allocate(graphics, new Rectangle(0, 0, 
+            gameBufferedGraphics = bufferedGraphicsContext.Allocate(graphics, new Rectangle(0, 0, 
                 panel1.Size.Width, panel1.Size.Height));
+            var nextGraphics = Graphics.FromHwnd(panel2.Handle);
+            var nextBufferedGraphicsContext = new BufferedGraphicsContext();
+            nextBufferedGraphics = nextBufferedGraphicsContext.Allocate(nextGraphics, new Rectangle(0, 0, 
+                panel2.Size.Width, panel2.Size.Height));
 
             var p = new Pen(Color.Black);
             recWidth = panel1.Width / countX;
             recHeight = panel1.Height / countY;
-            bufferedGraphics.Graphics.Clear(BackColor);
+            gameBufferedGraphics.Graphics.Clear(BackColor);
+            nextBufferedGraphics.Graphics.Clear(BackColor);
             for (var i = 0; i <= panel1.Width; i += recWidth)
             {
                 for (var j = 0; j <= panel1.Height; j += recHeight)
                 {
-                    bufferedGraphics.Graphics.DrawRectangle(p, i, j, recWidth, recHeight);
+                    gameBufferedGraphics.Graphics.DrawRectangle(p, i, j, recWidth, recHeight);
                 }
             }
 
-            bufferedGraphics.Render();
+            for (var i = 0; i <= panel2.Width; i += recWidth)
+            {
+                for (var j = 0; j <= panel2.Height; j += recHeight)
+                {
+                    nextBufferedGraphics.Graphics.DrawRectangle(p, i, j, recWidth, recHeight);
+                }
+            }
+
+            gameBufferedGraphics.Render();
+            nextBufferedGraphics.Render();
         }
 
         private void StartButtonClick(object sender, EventArgs e)
         {
-            game = new Game(bufferedGraphics, recWidth, recHeight);
+            game = new Game(gameBufferedGraphics, nextBufferedGraphics, recWidth, recHeight);
             game.ScoreInForm += GameScoreInForm;
             game.Start();
             this.Focus();

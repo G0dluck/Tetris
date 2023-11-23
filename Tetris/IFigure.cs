@@ -2,9 +2,13 @@
 
 namespace Tetris
 {
-    interface IFigure
+    public interface IFigure
     {
+        Brush Brush { get; }
+
         Point[] GetPoints();
+
+        Point[] CorrectPoints();
 
         Point[] GetLowPoints(Point[] point);
 

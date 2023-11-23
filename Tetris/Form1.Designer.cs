@@ -23,8 +23,8 @@
         #region Код, автоматически созданный конструктором форм Windows
 
         /// <summary>
-        /// Обязательный метод для поддержки конструктора - не изменяйте
-        /// содержимое данного метода при помощи редактора кода.
+        /// Required method for Designer support - do not modify
+        /// the contents of this method with the code editor.
         /// </summary>
         private void InitializeComponent()
         {
@@ -32,6 +32,8 @@
             this.start_button = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
             this.score = new System.Windows.Forms.Label();
+            this.panel2 = new System.Windows.Forms.Panel();
+            this.label2 = new System.Windows.Forms.Label();
             this.SuspendLayout();
             // 
             // panel1
@@ -70,11 +72,29 @@
             this.score.TabIndex = 3;
             this.score.Text = "0";
             // 
+            // panel2
+            // 
+            this.panel2.Location = new System.Drawing.Point(287, 50);
+            this.panel2.Name = "panel2";
+            this.panel2.Size = new System.Drawing.Size(81, 81);
+            this.panel2.TabIndex = 4;
+            // 
+            // label2
+            // 
+            this.label2.AutoSize = true;
+            this.label2.Location = new System.Drawing.Point(311, 34);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(32, 13);
+            this.label2.TabIndex = 5;
+            this.label2.Text = "Next:";
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(323, 463);
+            this.ClientSize = new System.Drawing.Size(390, 463);
+            this.Controls.Add(this.label2);
+            this.Controls.Add(this.panel2);
             this.Controls.Add(this.score);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.start_button);
@@ -87,8 +107,11 @@
             this.KeyUp += new System.Windows.Forms.KeyEventHandler(this.Form1KeyUp);
             this.ResumeLayout(false);
             this.PerformLayout();
-
         }
+
+        private System.Windows.Forms.Label label2;
+
+        private System.Windows.Forms.Panel panel2;
 
         #endregion
 

@@ -4,7 +4,7 @@ namespace Tetris
 {
     public class FigureLine : Figure, IFigure
     {
-        public FigureLine(int countX, int x, int rotation) : base(rotation)
+        public FigureLine(int countX, int x, int rotation) : base(countX, x, rotation)
         {
             switch (rotation)
             {
@@ -30,10 +30,9 @@ namespace Tetris
                     GeneralPoints = new Point[4];
                     break;
             }
-
-            CorrectPoints(countX, x);
         }
 
+        public override Brush Brush => Brushes.Green;
 
         public override Point[] GetLowPoints(Point[] point)
         {

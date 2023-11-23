@@ -4,7 +4,7 @@ namespace Tetris
 {
     public class FigureS : Figure, IFigure
     {
-        public FigureS(int countX, int x, int rotation) : base(rotation)
+        public FigureS(int countX, int x, int rotation) : base(countX, x, rotation)
         {
             if (rotation % 2 == 0)
             {
@@ -26,9 +26,9 @@ namespace Tetris
                     new Point(1, 2)
                 };
             }
-
-            CorrectPoints(countX, x);
         }
+
+        public override Brush Brush => Brushes.Orange;
 
         public override Point[] GetLowPoints(Point[] point)
         {

@@ -39,7 +39,6 @@ namespace Tetris
             return modeRotation == 0 ? new[] { point[3] } : new[] { point[0], point[1], point[2], point[3] };
         }
 
-
         public override Point[] GetRightPoints(Point[] point)
         {
             return modeRotation == 0 ? new[] { point[0], point[1], point[2], point[3] } : new[] { point[3] };
@@ -52,6 +51,7 @@ namespace Tetris
 
         public override Point[] Rotation(Point[] point)
         {
+            tempModeRotation = modeRotation;
             modeRotation = point[0].Y == point[1].Y ? 0 : 1;
 
             var pointTemp = new Point[4];

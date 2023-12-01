@@ -6,6 +6,7 @@ namespace Tetris
     {
         protected Point[] GeneralPoints;
         protected int modeRotation;
+        protected int? tempModeRotation;
         private readonly int countX;
         private readonly int positionX;
 
@@ -45,6 +46,15 @@ namespace Tetris
             }
 
             return points;
+        }
+
+        public void RevertModeRotation()
+        {
+            if (tempModeRotation.HasValue)
+            {
+                modeRotation = tempModeRotation.Value;
+                tempModeRotation = null;
+            }
         }
 
         public abstract Point[] GetLowPoints(Point[] point);

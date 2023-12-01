@@ -26,9 +26,11 @@ namespace Tetris
         private readonly BufferedGraphics gameBufferedGraphics;
         private readonly BufferedGraphics nextBufferedGraphics;
 
+        private readonly Action GameEnd;
+
         public event EventHandler ScoreInForm;
 
-        public Game(BufferedGraphics gameBufferedGraphics, BufferedGraphics nextBufferedGraphics, int rec_Width, int rec_Height)
+        public Game(BufferedGraphics gameBufferedGraphics, BufferedGraphics nextBufferedGraphics, int rec_Width, int rec_Height, Action endFn)
         {
             timer.Interval = 500;
             timer.Tick += TimerTick;
@@ -37,6 +39,7 @@ namespace Tetris
             this.nextBufferedGraphics = nextBufferedGraphics;
             this.recWidth = rec_Width;
             this.recHeight = rec_Height;
+            this.GameEnd = endFn;
         }
 
         public void TimerTick(object sender, EventArgs e)
@@ -61,21 +64,26 @@ namespace Tetris
             }
             else
             {
-                timer.Stop();
-                foreach (var p in pastPoints)
-                {
-                    arrFigure[p.Y, p.X].Status = true;
-                    arrFigure[p.Y, p.X].Brush = currentFigure.Brush;
-                }
-
-                score += 10;
-                OnScoreInForm(new ScoreEventArgs(score));
-
-                CheckLines(pastPoints);
-                /*Thread t = new Thread(Test.TestFigures);
-                t.Start(arrFigure);*/
-                Start();
+                StartNewFigure();
             }
+        }
+
+        private void StartNewFigure()
+        {
+            timer.Stop();
+            foreach (var p in pastPoints)
+            {
+                arrFigure[p.Y, p.X].Status = true;
+                arrFigure[p.Y, p.X].Brush = currentFigure.Brush;
+            }
+
+            score += 10;
+            OnScoreInForm(new ScoreEventArgs(score));
+
+            CheckLines(pastPoints);
+            /*Thread t = new Thread(Test.TestFigures);
+            t.Start(arrFigure);*/
+            Start();
         }
 
         private bool CheckEndOfGame(Point[] point)
@@ -109,7 +117,11 @@ namespace Tetris
                     }
                 }
 
+                Repaint(nextFigure.GetPoints(), nextBufferedGraphics, SystemBrushes.Control);
+
                 gameBufferedGraphics.Render();
+                nextBufferedGraphics.Render();
+                GameEnd();
                 return true;
             }
 
@@ -391,6 +403,10 @@ namespace Tetris
                 }
 
                 TimerTick(new object(), EventArgs.Empty);
+            }
+            else
+            {
+                currentFigure.RevertModeRotation();
             }
         }
 

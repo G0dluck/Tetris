@@ -10,6 +10,8 @@ namespace Tetris
 
         Point[] CorrectPoints();
 
+        void RevertModeRotation();
+
         Point[] GetLowPoints(Point[] point);
 
         Point[] GetRightPoints(Point[] point);

@@ -105,6 +105,7 @@ namespace Tetris
 
         public override Point[] Rotation(Point[] point)
         {
+            tempModeRotation = modeRotation;
             if (point[0].X == point[1].X + 1 && point[0].Y == point[1].Y - 1)
                 modeRotation = 0;
             else

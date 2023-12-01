@@ -66,7 +66,12 @@ namespace Tetris
 
         private void StartButtonClick(object sender, EventArgs e)
         {
-            game = new Game(gameBufferedGraphics, nextBufferedGraphics, recWidth, recHeight);
+            game = new Game(gameBufferedGraphics, nextBufferedGraphics, recWidth, recHeight, () =>
+            {
+                start_button.Enabled = true;
+                score.Text = "0";
+                game = null;
+            });
             game.ScoreInForm += GameScoreInForm;
             game.Start();
             this.Focus();

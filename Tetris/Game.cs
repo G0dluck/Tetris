@@ -5,414 +5,371 @@ using System.Windows.Forms;
 
 namespace Tetris
 {
-    public class Game
+    public class Game : IDisposable
     {
         private readonly Timer timer = new Timer();
         private readonly Random random = new Random();
 
-        private readonly ElementArray[,] arrFigure = new ElementArray[countRow, countCol];
+        private readonly Cell[,] board;
+        private readonly int columns;
+        private readonly int rows;
 
-        private readonly int recWidth;
-        private readonly int recHeight;
-        private const int countCol = 10, countRow = 20;
+        private readonly Action<Point, Brush> drawGameCell;
+        private readonly Action<Point> clearGameCell;
+        private readonly Action renderGame;
+        private readonly Action<Point, Brush> drawNextCell;
+        private readonly Action<Point> clearNextCell;
+        private readonly Action renderNext;
+        private readonly Action clearNextBoard;
+
+        private Tetromino currentTetromino;
+        private Tetromino nextTetromino;
+        private Point[] previousPoints;
+        private Point[] previousNextPoints;
         private int score;
 
-        private readonly Point[] points = new Point[4];
-        private readonly Point[] pastPoints = new Point[4];
+        public event EventHandler<ScoreEventArgs> ScoreChanged;
 
-        private IFigure currentFigure;
-        private IFigure nextFigure;
+        public event EventHandler<GameOverEventArgs> GameOver;
 
-        private readonly BufferedGraphics gameBufferedGraphics;
-        private readonly BufferedGraphics nextBufferedGraphics;
-
-        private readonly Action GameEnd;
-
-        public event EventHandler ScoreInForm;
-
-        public Game(BufferedGraphics gameBufferedGraphics, BufferedGraphics nextBufferedGraphics, int rec_Width, int rec_Height, Action endFn)
+        public Game(
+            int columns,
+            int rows,
+            Action<Point, Brush> drawGameCell,
+            Action<Point> clearGameCell,
+            Action renderGame,
+            Action<Point, Brush> drawNextCell,
+            Action<Point> clearNextCell,
+            Action renderNext,
+            Action clearNextBoard)
         {
+            this.columns = columns;
+            this.rows = rows;
+            this.drawGameCell = drawGameCell;
+            this.clearGameCell = clearGameCell;
+            this.renderGame = renderGame;
+            this.drawNextCell = drawNextCell;
+            this.clearNextCell = clearNextCell;
+            this.renderNext = renderNext;
+            this.clearNextBoard = clearNextBoard;
+
+            board = new Cell[rows, columns];
+
             timer.Interval = 500;
             timer.Tick += TimerTick;
-
-            this.gameBufferedGraphics = gameBufferedGraphics;
-            this.nextBufferedGraphics = nextBufferedGraphics;
-            this.recWidth = rec_Width;
-            this.recHeight = rec_Height;
-            this.GameEnd = endFn;
-        }
-
-        public void TimerTick(object sender, EventArgs e)
-        {
-            if (points[3].X != pastPoints[3].X || OutOfY(points) && 
-                !CheckBelowPoints(currentFigure.GetLowPoints(pastPoints)))
-            {
-                if (points[3].X == pastPoints[3].X)
-                {
-                    points[0].Y++;
-                    points[1].Y++;
-                    points[2].Y++;
-                    points[3].Y++;
-                }
-
-                RepaintGame();
-
-                for (var i = 0; i < points.Length; i++)
-                {
-                    pastPoints[i] = points[i];
-                }
-            }
-            else
-            {
-                StartNewFigure();
-            }
-        }
-
-        private void StartNewFigure()
-        {
-            timer.Stop();
-            foreach (var p in pastPoints)
-            {
-                arrFigure[p.Y, p.X].Status = true;
-                arrFigure[p.Y, p.X].Brush = currentFigure.Brush;
-            }
-
-            score += 10;
-            OnScoreInForm(new ScoreEventArgs(score));
-
-            CheckLines(pastPoints);
-            /*Thread t = new Thread(Test.TestFigures);
-            t.Start(arrFigure);*/
-            Start();
-        }
-
-        private bool CheckEndOfGame(Point[] point)
-        {
-            if (point.Any(p => arrFigure[p.Y, p.X].Status))
-            {
-                string text;
-                if (Properties.Settings.Default.HighScore < score)
-                {
-                    Properties.Settings.Default.HighScore = score;
-                    Properties.Settings.Default.Save();
-                    text = "NEW HIGHSCORE!!! \n" + "Your results: " + score + " scores";
-                }
-                else
-                {
-                    text = "Your results: " + score + " scores \n" + 
-                           "HighScore: " + Properties.Settings.Default.HighScore + " scores";
-                }
-
-                MessageBox.Show(text, "Game Over!", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                for (var i = 0; i < countRow; i++)
-                {
-                    for (var j = 0; j < countCol; j++)
-                    {
-                        if (arrFigure[i, j].Status)
-                        {
-                            gameBufferedGraphics.Graphics.FillRectangle(SystemBrushes.Control,
-                                j * recWidth + 2, i * recHeight + 2, recWidth - 3, recHeight - 3);
-                        }
-                    }
-                }
-
-                Repaint(nextFigure.GetPoints(), nextBufferedGraphics, SystemBrushes.Control);
-
-                gameBufferedGraphics.Render();
-                nextBufferedGraphics.Render();
-                GameEnd();
-                return true;
-            }
-
-            return false;
-        }
-
-        public void OnScoreInForm(ScoreEventArgs e)
-        {
-            var scoreInFrom = ScoreInForm;
-            scoreInFrom?.Invoke(this, e);
-        }
-
-        private void CheckLines(Point[] point)
-        {
-            var pointY = point.Select(x => x.Y).ToArray();
-            var max = pointY.Max();
-            var min = pointY.Min();
-
-            for (var i = max; i >= min; i--)
-            {
-                var removeLine = false;
-                for (var j = 0; j < countCol; j++)
-                {
-                    if (!arrFigure[i, j].Status)
-                    {
-                        removeLine = false;
-                        break;
-                    }
-
-                    removeLine = true;
-                }
-
-                if (removeLine)
-                {
-                    var numberLine = i;
-                    for (var j = 0; j < countCol; j++)
-                    {
-                        arrFigure[i, j].Status = false;
-                        gameBufferedGraphics.Graphics.FillRectangle(SystemBrushes.Control,
-                            j * recWidth + 2, i * recHeight + 2, recWidth - 3, recHeight - 3);
-                    }
-
-                    gameBufferedGraphics.Render();
-                    DownwardShift(numberLine);
-                    i++;
-                    min++;
-                    score += 100;
-                    OnScoreInForm(new ScoreEventArgs(score));
-                }
-            }
-        }
-
-        private void DownwardShift(int numberLine)
-        {
-            while (numberLine > 0)
-            {
-                for (var i = 0; i < countCol; i++)
-                {
-                    if (arrFigure[numberLine - 1, i].Status)
-                    {
-                        arrFigure[numberLine, i].Status = true;
-                        arrFigure[numberLine, i].Brush = arrFigure[numberLine - 1, i].Brush;
-                        gameBufferedGraphics.Graphics.FillRectangle(arrFigure[numberLine - 1, i].Brush,
-                        i * recWidth + 2, numberLine * recHeight + 2, recWidth - 3, recHeight - 3);
-                    }
-
-                    if (!arrFigure[numberLine - 1, i].Status && arrFigure[numberLine, i].Status)
-                    {
-                        arrFigure[numberLine, i].Status = false;
-                        arrFigure[numberLine, i].Brush = SystemBrushes.Control;
-                        gameBufferedGraphics.Graphics.FillRectangle(SystemBrushes.Control,
-                                i * recWidth + 2, numberLine * recHeight + 2, recWidth - 3, recHeight - 3);
-                    }
-                }
-
-                gameBufferedGraphics.Render();
-
-                if (numberLine - 1 == 0)
-                {
-                    return;
-                }
-
-                numberLine--;
-                var countElements = 0;
-                for (var i = 0; i < countCol; i++)
-                {
-                    if (arrFigure[numberLine - 1, i].Status)
-                    {
-                        break;
-                    }
-
-                    countElements++;
-                }
-
-                if (countElements == countCol)
-                {
-                    for (var i = 0; i < countCol; i++)
-                    {
-                        arrFigure[numberLine, i].Status = false;
-                        arrFigure[numberLine, i].Brush = SystemBrushes.Control;
-                        gameBufferedGraphics.Graphics.FillRectangle(SystemBrushes.Control,
-                                i * recWidth + 2, numberLine * recHeight + 2, recWidth - 3, recHeight - 3);
-                    }
-
-                    gameBufferedGraphics.Render();
-                    return;
-                }
-            }
-        }
-
-        private bool CheckBelowPoints(Point[] point)
-        {
-            return point.Any(p => arrFigure[p.Y + 1, p.X].Status);
-        }
-
-        private void RepaintGame()
-        {
-            Repaint(pastPoints, gameBufferedGraphics, SystemBrushes.Control);
-            Repaint(points, gameBufferedGraphics, currentFigure.Brush);
-            gameBufferedGraphics.Render();
-        }
-
-        private void RepaintNext(Point[] currentPoints)
-        {
-            Repaint(currentPoints, nextBufferedGraphics, SystemBrushes.Control);
-            Repaint(nextFigure.GetPoints(), nextBufferedGraphics, nextFigure.Brush);
-            nextBufferedGraphics.Render();
-        }
-
-        private void Repaint(Point[] currentPoints, BufferedGraphics bufferedGraphics, Brush brush)
-        {
-            if (currentPoints != null)
-            {
-                foreach (var point in currentPoints)
-                {
-                    bufferedGraphics.Graphics.FillRectangle(brush, 
-                        point.X * recWidth + 2, point.Y * recHeight + 2, recWidth - 3, recHeight - 3);
-                }
-            }
-        }
-
-        private IFigure GetFigure()
-        {
-            var randomfigure = random.Next(0, 7);
-            IFigure figure;
-            switch (randomfigure)
-            {
-                case 0:
-                    figure = new FigureSquare(countCol, random.Next(0, countCol - 1));
-                    break;
-                case 1:
-                    figure = new FigureLine(countCol, random.Next(0, countCol - 1), random.Next(0, 2));
-                    break;
-                case 2:
-                    figure = new FigureT(countCol, random.Next(0, countCol - 1), random.Next(0, 4));
-                    break;
-                case 3:
-                    figure = new FigureJ(countCol, random.Next(0, countCol - 1), random.Next(0, 4));
-                    break;
-                case 4:
-                    figure = new FigureL(countCol, random.Next(0, countCol - 1), random.Next(0, 4));
-                    break;
-                case 5:
-                    figure = new FigureS(countCol, random.Next(0, countCol - 1), random.Next(0, 4));
-                    break;
-                case 6:
-                    figure = new FigureZ(countCol, random.Next(0, countCol - 1), random.Next(0, 4));
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
-
-            return figure;
         }
 
         public void Start()
         {
-            var currentPoints = nextFigure?.GetPoints();
-            currentFigure = nextFigure ?? GetFigure();
-            nextFigure = GetFigure();
+            ClearBoard();
 
-            RepaintNext(currentPoints);
+            currentTetromino = nextTetromino ?? Tetromino.CreateRandom(random, columns);
+            nextTetromino = Tetromino.CreateRandom(random, 4);
 
-            var figurePoints = currentFigure.CorrectPoints();
-            if (CheckEndOfGame(figurePoints))
+            clearNextBoard?.Invoke();
+            DrawNextTetromino();
+
+            if (IsGameOver(currentTetromino.GetPoints()))
             {
+                OnGameOver();
                 return;
             }
 
-            for (var i = 0; i < points.Length; i++)
-            {
-                points[i] = figurePoints[i];
-                pastPoints[i] = figurePoints[i];
-            }
-
-            RepaintGame();
+            previousPoints = currentTetromino.GetPoints();
+            DrawCurrentTetromino();
 
             timer.Start();
         }
 
-        public void Moving(Keys e)
+        public void Stop()
         {
-            switch(e)
+            timer.Stop();
+        }
+
+        public void Move(int deltaX)
+        {
+            if (currentTetromino == null)
+                return;
+
+            var newPosition = new Point(currentTetromino.Position.X + deltaX, currentTetromino.Position.Y);
+            var candidate = currentTetromino.GetPointsAt(newPosition, currentTetromino.CurrentState);
+
+            if (!CanPlace(candidate))
+                return;
+
+            currentTetromino.Position = newPosition;
+            RepaintCurrentTetromino();
+        }
+
+        public void Rotate()
+        {
+            if (currentTetromino == null)
+                return;
+
+            const int direction = 1;
+            var originalPosition = currentTetromino.Position;
+            var rotated = currentTetromino.GetRotatedPoints(direction);
+
+            if (CanPlace(rotated))
             {
-                case Keys.Right when OutOfXRight(points)
-                                     && !CheckRightPoints(currentFigure.GetRightPoints(pastPoints)):
-                    //timer.Stop();
-                    points[0].X++;
-                    points[1].X++;
-                    points[2].X++;
-                    points[3].X++;
-                    TimerTick(new object(), EventArgs.Empty);
-                    //repaint();
-                    //timer.Start();
-                    break;
-                case Keys.Left when OutOfXLeft(points)
-                                    && !CheckLeftPoints(currentFigure.GetLeftPoints(pastPoints)):
-                    //timer.Stop();
-                    points[0].X--;
-                    points[1].X--;
-                    points[2].X--;
-                    points[3].X--;
-                    TimerTick(new object(), EventArgs.Empty);
-                    //repaint();
-                    //timer.Start();
-                    break;
-            }
-        }
-
-        public void RapidLowering(bool e)
-        {
-            timer.Interval = e ? 50 : 500;
-        }
-
-        private bool CheckRightPoints(Point[] point)
-        {
-            return point.Any(p => arrFigure[p.Y, p.X + 1].Status);
-        }
-
-        private bool CheckLeftPoints(Point[] point)
-        {
-            return point.Any(p => arrFigure[p.Y, p.X - 1].Status);
-        }
-
-        private bool OutOfY(Point[] point)
-        {
-            return point[0].Y < countRow - 1 && point[1].Y < countRow - 1 &&
-                   point[2].Y < countRow - 1 && point[3].Y < countRow - 1 &&
-                   point[0].Y >= 0 && point[1].Y >= 0 &&
-                   point[2].Y >= 0 && point[3].Y >= 0;
-        }
-
-        private bool OutOfXRight(Point[] point)
-        {
-            return point[0].X < countCol - 1 && point[1].X < countCol - 1 &&
-                   point[2].X < countCol - 1 && point[3].X < countCol - 1;
-        }
-
-        private bool OutOfXLeft(Point[] point)
-        {
-            return point[0].X > 0 && point[1].X > 0 &&
-                   point[2].X > 0 && point[3].X > 0;
-        }
-
-        public void Rotation()
-        {
-            if (currentFigure is FigureSquare)
-            {
+                ApplyRotation(direction);
                 return;
             }
 
-            var pointsTemp = currentFigure.Rotation(points);
-            if (OutOfY(pointsTemp) && AbilityToRotate(pointsTemp) && 
-                !CheckBelowPoints(currentFigure.GetLowPoints(pointsTemp)))
+            // Simple wall kicks
+            for (var kick = 1; kick <= 2; kick++)
             {
-                for (var i = 0; i < pointsTemp.Length; i++)
+                var kickedLeft = rotated.Select(p => new Point(p.X - kick, p.Y)).ToArray();
+                if (CanPlace(kickedLeft))
                 {
-                    points[i] = pointsTemp[i];
+                    currentTetromino.Position = new Point(originalPosition.X - kick, originalPosition.Y);
+                    ApplyRotation(direction);
+                    return;
                 }
 
-                TimerTick(new object(), EventArgs.Empty);
-            }
-            else
-            {
-                currentFigure.RevertModeRotation();
+                var kickedRight = rotated.Select(p => new Point(p.X + kick, p.Y)).ToArray();
+                if (CanPlace(kickedRight))
+                {
+                    currentTetromino.Position = new Point(originalPosition.X + kick, originalPosition.Y);
+                    ApplyRotation(direction);
+                    return;
+                }
             }
         }
 
-        private bool AbilityToRotate(Point[] point)
+        public void FastDrop(bool enabled)
         {
-            return point.All(p => p.X < countCol && p.X >= 0 && !arrFigure[p.Y, p.X].Status);
+            timer.Interval = enabled ? 50 : 500;
+        }
+
+        public void Dispose()
+        {
+            timer?.Stop();
+            timer?.Dispose();
+        }
+
+        private void TimerTick(object sender, EventArgs e)
+        {
+            if (currentTetromino == null)
+                return;
+
+            var newPosition = new Point(currentTetromino.Position.X, currentTetromino.Position.Y + 1);
+            var candidate = currentTetromino.GetPointsAt(newPosition, currentTetromino.CurrentState);
+
+            if (CanPlace(candidate))
+            {
+                currentTetromino.Position = newPosition;
+                RepaintCurrentTetromino();
+            }
+            else
+            {
+                LockTetromino();
+                ClearLines();
+                StartNewTetromino();
+            }
+        }
+
+        private void ApplyRotation(int direction)
+        {
+            currentTetromino.Rotate(direction);
+            RepaintCurrentTetromino();
+        }
+
+        private void RepaintCurrentTetromino()
+        {
+            ClearCurrentTetromino();
+            previousPoints = currentTetromino.GetPoints();
+            DrawCurrentTetromino();
+        }
+
+        private void DrawCurrentTetromino()
+        {
+            foreach (var point in currentTetromino.GetPoints())
+            {
+                drawGameCell(point, currentTetromino.Brush);
+            }
+
+            renderGame?.Invoke();
+        }
+
+        private void ClearCurrentTetromino()
+        {
+            foreach (var point in previousPoints)
+            {
+                clearGameCell(point);
+            }
+        }
+
+        private void DrawNextTetromino()
+        {
+            if (previousNextPoints != null)
+            {
+                foreach (var point in previousNextPoints)
+                {
+                    clearNextCell(point);
+                }
+            }
+
+            previousNextPoints = nextTetromino.GetPoints();
+            foreach (var point in previousNextPoints)
+            {
+                drawNextCell(point, nextTetromino.Brush);
+            }
+
+            renderNext?.Invoke();
+        }
+
+        private void LockTetromino()
+        {
+            foreach (var point in currentTetromino.GetPoints())
+            {
+                board[point.Y, point.X] = new Cell
+                {
+                    IsOccupied = true,
+                    Brush = currentTetromino.Brush
+                };
+            }
+
+            score += 10;
+            OnScoreChanged();
+        }
+
+        private void StartNewTetromino()
+        {
+            timer.Stop();
+
+            currentTetromino = nextTetromino;
+            nextTetromino = Tetromino.CreateRandom(random, 4);
+
+            DrawNextTetromino();
+
+            if (IsGameOver(currentTetromino.GetPoints()))
+            {
+                OnGameOver();
+                return;
+            }
+
+            previousPoints = currentTetromino.GetPoints();
+            DrawCurrentTetromino();
+
+            timer.Start();
+        }
+
+        private void ClearLines()
+        {
+            for (var y = rows - 1; y >= 0; y--)
+            {
+                if (!IsLineFull(y))
+                    continue;
+
+                RemoveLine(y);
+                ShiftLinesDown(y);
+                score += 100;
+                OnScoreChanged();
+                y++;
+            }
+        }
+
+        private bool IsLineFull(int y)
+        {
+            for (var x = 0; x < columns; x++)
+            {
+                if (!board[y, x].IsOccupied)
+                    return false;
+            }
+
+            return true;
+        }
+
+        private void RemoveLine(int y)
+        {
+            for (var x = 0; x < columns; x++)
+            {
+                board[y, x].IsOccupied = false;
+                board[y, x].Brush = null;
+                clearGameCell(new Point(x, y));
+            }
+
+            renderGame?.Invoke();
+        }
+
+        private void ShiftLinesDown(int startY)
+        {
+            for (var y = startY; y > 0; y--)
+            {
+                for (var x = 0; x < columns; x++)
+                {
+                    board[y, x] = board[y - 1, x];
+                }
+
+                RedrawLine(y);
+            }
+
+            for (var x = 0; x < columns; x++)
+            {
+                board[0, x].IsOccupied = false;
+                board[0, x].Brush = null;
+                clearGameCell(new Point(x, 0));
+            }
+        }
+
+        private void RedrawLine(int y)
+        {
+            for (var x = 0; x < columns; x++)
+            {
+                var point = new Point(x, y);
+                if (board[y, x].IsOccupied)
+                    drawGameCell(point, board[y, x].Brush);
+                else
+                    clearGameCell(point);
+            }
+
+            renderGame?.Invoke();
+        }
+
+        private void ClearBoard()
+        {
+            for (var y = 0; y < rows; y++)
+            {
+                for (var x = 0; x < columns; x++)
+                {
+                    board[y, x].IsOccupied = false;
+                    board[y, x].Brush = null;
+                    clearGameCell(new Point(x, y));
+                }
+            }
+        }
+
+        private bool CanPlace(Point[] points)
+        {
+            return points.All(p =>
+                p.X >= 0 && p.X < columns &&
+                p.Y >= 0 && p.Y < rows &&
+                !board[p.Y, p.X].IsOccupied);
+        }
+
+        private bool IsGameOver(Point[] points)
+        {
+            return points.Any(p => board[p.Y, p.X].IsOccupied);
+        }
+
+        private void OnScoreChanged()
+        {
+            ScoreChanged?.Invoke(this, new ScoreEventArgs(score));
+        }
+
+        private void OnGameOver()
+        {
+            timer.Stop();
+
+            var isHighScore = Properties.Settings.Default.HighScore < score;
+            if (isHighScore)
+            {
+                Properties.Settings.Default.HighScore = score;
+                Properties.Settings.Default.Save();
+            }
+
+            GameOver?.Invoke(this, new GameOverEventArgs(score, isHighScore));
         }
     }
 }

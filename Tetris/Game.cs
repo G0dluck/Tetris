@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
@@ -28,9 +28,17 @@ namespace Tetris
         private Point[] previousNextPoints;
         private int score;
 
+        private const int PreviewCells = 4;
+
+        // «7-bag»: каждая из 7 фигур выпадает ровно один раз за «мешок»
+        private readonly int[] bag = new int[7];
+        private int bagIndex;
+
         public event EventHandler<ScoreEventArgs> ScoreChanged;
 
         public event EventHandler<GameOverEventArgs> GameOver;
+
+        public bool IsPaused { get; private set; }
 
         public Game(
             int columns,
@@ -55,6 +63,8 @@ namespace Tetris
 
             board = new Cell[rows, columns];
 
+            RefillBag();
+
             timer.Interval = 500;
             timer.Tick += TimerTick;
         }
@@ -63,8 +73,8 @@ namespace Tetris
         {
             ClearBoard();
 
-            currentTetromino = nextTetromino ?? Tetromino.CreateRandom(random, columns);
-            nextTetromino = Tetromino.CreateRandom(random, 4);
+            currentTetromino = CreateNextTetromino();
+            nextTetromino = CreateNextTetromino();
 
             clearNextBoard?.Invoke();
             DrawNextTetromino();
@@ -89,13 +99,17 @@ namespace Tetris
         public void Move(int deltaX)
         {
             if (currentTetromino == null)
+            {
                 return;
+            }
 
             var newPosition = new Point(currentTetromino.Position.X + deltaX, currentTetromino.Position.Y);
             var candidate = currentTetromino.GetPointsAt(newPosition, currentTetromino.CurrentState);
 
             if (!CanPlace(candidate))
+            {
                 return;
+            }
 
             currentTetromino.Position = newPosition;
             RepaintCurrentTetromino();
@@ -104,7 +118,9 @@ namespace Tetris
         public void Rotate()
         {
             if (currentTetromino == null)
+            {
                 return;
+            }
 
             const int direction = 1;
             var originalPosition = currentTetromino.Position;
@@ -116,7 +132,7 @@ namespace Tetris
                 return;
             }
 
-            // Simple wall kicks
+            // Простой wall kick влево/вправо на 1…2 клетки
             for (var kick = 1; kick <= 2; kick++)
             {
                 var kickedLeft = rotated.Select(p => new Point(p.X - kick, p.Y)).ToArray();
@@ -135,11 +151,78 @@ namespace Tetris
                     return;
                 }
             }
+
+            // Вертикальный kick вверх — позволяет вращаться вплотную к полу
+            var kickedUp = rotated.Select(p => new Point(p.X, p.Y - 1)).ToArray();
+            if (CanPlace(kickedUp))
+            {
+                currentTetromino.Position = new Point(originalPosition.X, originalPosition.Y - 1);
+                ApplyRotation(direction);
+            }
+        }
+
+        public void HardDrop()
+        {
+            if (currentTetromino == null)
+            {
+                return;
+            }
+
+            var y = currentTetromino.Position.Y;
+            while (true)
+            {
+                var candidate = currentTetromino.GetPointsAt(
+                    new Point(currentTetromino.Position.X, y + 1), currentTetromino.CurrentState);
+                if (!CanPlace(candidate))
+                {
+                    break;
+                }
+
+                y++;
+            }
+
+            currentTetromino.Position = new Point(currentTetromino.Position.X, y);
+            RepaintCurrentTetromino();
+
+            LockTetromino();
+            ClearLines();
+            StartNewTetromino();
+        }
+
+        public void TogglePause()
+        {
+            if (currentTetromino == null)
+            {
+                return;
+            }
+
+            IsPaused = !IsPaused;
+            if (IsPaused)
+            {
+                timer.Stop();
+            }
+            else
+            {
+                timer.Start();
+            }
         }
 
         public void FastDrop(bool enabled)
         {
             timer.Interval = enabled ? 50 : 500;
+        }
+
+        /// <summary>
+        /// Полная перерисовка доски и текущей фигуры (для восстановления буфера после изменения размеров панелей).
+        /// </summary>
+        public void RenderBoard()
+        {
+            RedrawBoard();
+            if (currentTetromino != null)
+            {
+                previousPoints = currentTetromino.GetPoints();
+                DrawCurrentTetromino();
+            }
         }
 
         public void Dispose()
@@ -148,10 +231,46 @@ namespace Tetris
             timer?.Dispose();
         }
 
+        private int NextShapeIndex()
+        {
+            if (bagIndex >= bag.Length)
+            {
+                RefillBag();
+            }
+
+            return bag[bagIndex++];
+        }
+
+        private void RefillBag()
+        {
+            for (var i = 0; i < bag.Length; i++)
+            {
+                bag[i] = i;
+            }
+
+            // Перемешивание Фишера–Йетса
+            for (var i = bag.Length - 1; i > 0; i--)
+            {
+                var j = random.Next(i + 1);
+                var tmp = bag[i];
+                bag[i] = bag[j];
+                bag[j] = tmp;
+            }
+
+            bagIndex = 0;
+        }
+
+        private Tetromino CreateNextTetromino()
+        {
+            return Tetromino.Create(NextShapeIndex(), random, columns);
+        }
+
         private void TimerTick(object sender, EventArgs e)
         {
             if (currentTetromino == null)
+            {
                 return;
+            }
 
             var newPosition = new Point(currentTetromino.Position.X, currentTetromino.Position.Y + 1);
             var candidate = currentTetromino.GetPointsAt(newPosition, currentTetromino.CurrentState);
@@ -210,13 +329,31 @@ namespace Tetris
                 }
             }
 
-            previousNextPoints = nextTetromino.GetPoints();
+            // Фигура рисуется по центру панели предпросмотра, независимо от Position
+            previousNextPoints = GetCenteredPreviewPoints(nextTetromino.GetPoints());
             foreach (var point in previousNextPoints)
             {
                 drawNextCell(point, nextTetromino.Brush);
             }
 
             renderNext?.Invoke();
+        }
+
+        private Point[] GetCenteredPreviewPoints(Point[] points)
+        {
+            var minX = points.Min(p => p.X);
+            var maxX = points.Max(p => p.X);
+            var minY = points.Min(p => p.Y);
+            var maxY = points.Max(p => p.Y);
+
+            var width = maxX - minX + 1;
+            var height = maxY - minY + 1;
+            var offsetX = (PreviewCells - width) / 2;
+            var offsetY = (PreviewCells - height) / 2;
+
+            return points
+                .Select(p => new Point(p.X - minX + offsetX, p.Y - minY + offsetY))
+                .ToArray();
         }
 
         private void LockTetromino()
@@ -239,7 +376,7 @@ namespace Tetris
             timer.Stop();
 
             currentTetromino = nextTetromino;
-            nextTetromino = Tetromino.CreateRandom(random, 4);
+            nextTetromino = CreateNextTetromino();
 
             DrawNextTetromino();
 
@@ -257,17 +394,36 @@ namespace Tetris
 
         private void ClearLines()
         {
+            var cleared = 0;
+
+            // Снизу вверх: полные строки пропускаем (считаем), неполные сдвигаем вниз на их место
             for (var y = rows - 1; y >= 0; y--)
             {
-                if (!IsLineFull(y))
-                    continue;
-
-                RemoveLine(y);
-                ShiftLinesDown(y);
-                score += 100;
-                OnScoreChanged();
-                y++;
+                if (IsLineFull(y))
+                {
+                    cleared++;
+                }
+                else if (cleared > 0)
+                {
+                    CopyRow(y, y + cleared);
+                    ClearRow(y);
+                }
             }
+
+            if (cleared == 0)
+            {
+                return;
+            }
+
+            for (var y = 0; y < cleared; y++)
+            {
+                ClearRow(y);
+            }
+
+            RedrawBoard();
+
+            score += 100 * cleared;
+            OnScoreChanged();
         }
 
         private bool IsLineFull(int y)
@@ -275,53 +431,47 @@ namespace Tetris
             for (var x = 0; x < columns; x++)
             {
                 if (!board[y, x].IsOccupied)
+                {
                     return false;
+                }
             }
 
             return true;
         }
 
-        private void RemoveLine(int y)
+        private void CopyRow(int from, int to)
+        {
+            for (var x = 0; x < columns; x++)
+            {
+                board[to, x] = board[from, x];
+            }
+        }
+
+        private void ClearRow(int y)
         {
             for (var x = 0; x < columns; x++)
             {
                 board[y, x].IsOccupied = false;
                 board[y, x].Brush = null;
-                clearGameCell(new Point(x, y));
             }
-
-            renderGame?.Invoke();
         }
 
-        private void ShiftLinesDown(int startY)
+        private void RedrawBoard()
         {
-            for (var y = startY; y > 0; y--)
+            for (var y = 0; y < rows; y++)
             {
                 for (var x = 0; x < columns; x++)
                 {
-                    board[y, x] = board[y - 1, x];
+                    var point = new Point(x, y);
+                    if (board[y, x].IsOccupied)
+                    {
+                        drawGameCell(point, board[y, x].Brush);
+                    }
+                    else
+                    {
+                        clearGameCell(point);
+                    }
                 }
-
-                RedrawLine(y);
-            }
-
-            for (var x = 0; x < columns; x++)
-            {
-                board[0, x].IsOccupied = false;
-                board[0, x].Brush = null;
-                clearGameCell(new Point(x, 0));
-            }
-        }
-
-        private void RedrawLine(int y)
-        {
-            for (var x = 0; x < columns; x++)
-            {
-                var point = new Point(x, y);
-                if (board[y, x].IsOccupied)
-                    drawGameCell(point, board[y, x].Brush);
-                else
-                    clearGameCell(point);
             }
 
             renderGame?.Invoke();
@@ -350,7 +500,10 @@ namespace Tetris
 
         private bool IsGameOver(Point[] points)
         {
-            return points.Any(p => board[p.Y, p.X].IsOccupied);
+            return points.Any(p =>
+                p.X < 0 || p.X >= columns ||
+                p.Y < 0 || p.Y >= rows ||
+                board[p.Y, p.X].IsOccupied);
         }
 
         private void OnScoreChanged()

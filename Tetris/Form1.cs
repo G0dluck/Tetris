@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -8,13 +8,15 @@ namespace Tetris
     {
         private Game game;
 
-        private Graphics gameGraphics;
         private BufferedGraphicsContext gameBufferedGraphicsContext;
         private BufferedGraphics gameBufferedGraphics;
+        private Graphics gameGraphics;
+        private Size gameBufferSize;
 
-        private Graphics nextGraphics;
         private BufferedGraphicsContext nextBufferedGraphicsContext;
         private BufferedGraphics nextBufferedGraphics;
+        private Graphics nextGraphics;
+        private Size nextBufferSize;
 
         private int cellWidth;
         private int cellHeight;
@@ -24,37 +26,73 @@ namespace Tetris
         public Form1()
         {
             InitializeComponent();
-            InitializeGraphics();
 
             FormClosed += Form1FormClosed;
+            Deactivate += Form1Deactivate;
+
+            // Панели фиксированного размера: буферы рассчитаны под них, окно не растягиваем
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            MaximizeBox = false;
+
+            panel1.Resize += PanelResized;
+            panel2.Resize += PanelResized;
             panel2.Paint += Panel2Paint;
 
-            if (System.IO.File.Exists("test.txt"))
-            {
-                System.IO.File.Delete("test.txt");
-            }
+            gameBufferedGraphicsContext = new BufferedGraphicsContext();
+            nextBufferedGraphicsContext = new BufferedGraphicsContext();
+
+            EnsureGameBuffer();
+            EnsureNextBuffer();
         }
 
-        private void InitializeGraphics()
+        private void EnsureGameBuffer()
         {
-            gameGraphics = Graphics.FromHwnd(panel1.Handle);
-            gameBufferedGraphicsContext = new BufferedGraphicsContext();
-            gameBufferedGraphics = gameBufferedGraphicsContext.Allocate(gameGraphics, new Rectangle(0, 0,
-                panel1.Size.Width, panel1.Size.Height));
+            var width = Math.Max(panel1.Width, 1);
+            var height = Math.Max(panel1.Height, 1);
 
-            nextGraphics = Graphics.FromHwnd(panel2.Handle);
-            nextBufferedGraphicsContext = new BufferedGraphicsContext();
-            nextBufferedGraphics = nextBufferedGraphicsContext.Allocate(nextGraphics, new Rectangle(0, 0,
-                panel2.Size.Width, panel2.Size.Height));
+            if (gameBufferedGraphics != null && gameBufferSize.Width == width && gameBufferSize.Height == height)
+            {
+                return;
+            }
+
+            gameBufferedGraphics?.Dispose();
+            gameGraphics?.Dispose();
+            gameGraphics = panel1.CreateGraphics();
+            gameBufferedGraphics = gameBufferedGraphicsContext.Allocate(gameGraphics, new Rectangle(0, 0, width, height));
+            gameBufferSize = new Size(width, height);
 
             cellWidth = panel1.Width / Columns;
             cellHeight = panel1.Height / Rows;
 
             DrawGrid(gameBufferedGraphics, panel1.Width, panel1.Height);
-            DrawGrid(nextBufferedGraphics, panel2.Width, panel2.Height);
-
             gameBufferedGraphics.Render();
+        }
+
+        private void EnsureNextBuffer()
+        {
+            var width = Math.Max(panel2.Width, 1);
+            var height = Math.Max(panel2.Height, 1);
+
+            if (nextBufferedGraphics != null && nextBufferSize.Width == width && nextBufferSize.Height == height)
+            {
+                return;
+            }
+
+            nextBufferedGraphics?.Dispose();
+            nextGraphics?.Dispose();
+            nextGraphics = panel2.CreateGraphics();
+            nextBufferedGraphics = nextBufferedGraphicsContext.Allocate(nextGraphics, new Rectangle(0, 0, width, height));
+            nextBufferSize = new Size(width, height);
+
+            DrawGrid(nextBufferedGraphics, panel2.Width, panel2.Height);
             nextBufferedGraphics.Render();
+        }
+
+        private void PanelResized(object sender, EventArgs e)
+        {
+            EnsureGameBuffer();
+            EnsureNextBuffer();
+            game?.RenderBoard();
         }
 
         private void DrawGrid(BufferedGraphics bufferedGraphics, int width, int height)
@@ -75,6 +113,7 @@ namespace Tetris
 
         private void ClearNextBoard()
         {
+            EnsureNextBuffer();
             nextBufferedGraphics.Graphics.Clear(BackColor);
             DrawGrid(nextBufferedGraphics, panel2.Width, panel2.Height);
             nextBufferedGraphics.Render();
@@ -101,6 +140,7 @@ namespace Tetris
             game.GameOver += GameGameOver;
             game.Start();
 
+            Text = "Tetris";
             start_button.Enabled = false;
             Focus();
         }
@@ -145,7 +185,15 @@ namespace Tetris
         private void Form1KeyDown(object sender, KeyEventArgs e)
         {
             if (game == null)
+            {
                 return;
+            }
+
+            // Во время паузы разрешена только клавиша возобновления
+            if (game.IsPaused && e.KeyCode != Keys.P)
+            {
+                return;
+            }
 
             switch (e.KeyCode)
             {
@@ -161,22 +209,44 @@ namespace Tetris
                 case Keys.Down:
                     game.FastDrop(true);
                     break;
+                case Keys.Space:
+                    game.HardDrop();
+                    break;
+                case Keys.P:
+                    TogglePause();
+                    break;
             }
         }
 
         private void Form1KeyUp(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Down)
+            {
                 game?.FastDrop(false);
+            }
+        }
+
+        private void Form1Deactivate(object sender, EventArgs e)
+        {
+            // Сброс быстрого падения, если KeyUp не дошёл из-за потери фокуса
+            game?.FastDrop(false);
+        }
+
+        private void TogglePause()
+        {
+            game.TogglePause();
+            Text = game.IsPaused ? "Tetris — Paused (P)" : "Tetris";
         }
 
         private void Panel1Paint(object sender, PaintEventArgs e)
         {
+            EnsureGameBuffer();
             gameBufferedGraphics?.Render();
         }
 
         private void Panel2Paint(object sender, PaintEventArgs e)
         {
+            EnsureNextBuffer();
             nextBufferedGraphics?.Render();
         }
 
@@ -186,10 +256,10 @@ namespace Tetris
 
             gameBufferedGraphics?.Dispose();
             nextBufferedGraphics?.Dispose();
-            gameBufferedGraphicsContext?.Dispose();
-            nextBufferedGraphicsContext?.Dispose();
             gameGraphics?.Dispose();
             nextGraphics?.Dispose();
+            gameBufferedGraphicsContext?.Dispose();
+            nextBufferedGraphicsContext?.Dispose();
         }
     }
 }

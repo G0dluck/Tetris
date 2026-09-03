@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Linq;
 
@@ -11,9 +11,13 @@ namespace Tetris
         public Tetromino(Point[][] states, Brush brush)
         {
             if (states == null)
+            {
                 throw new ArgumentNullException(nameof(states));
+            }
             if (states.Length == 0)
+            {
                 throw new ArgumentException("States cannot be empty.", nameof(states));
+            }
 
             this.states = states;
             this.Brush = brush ?? throw new ArgumentNullException(nameof(brush));
@@ -62,9 +66,9 @@ namespace Tetris
             return ((state % length) + length) % length;
         }
 
-        public static Tetromino CreateRandom(Random random, int boardWidth)
+        public static Tetromino Create(int shape, Random random, int boardWidth)
         {
-            switch (random.Next(7))
+            switch (shape)
             {
                 case 0: return CreateI(random, boardWidth);
                 case 1: return CreateO(random, boardWidth);
@@ -73,7 +77,7 @@ namespace Tetris
                 case 4: return CreateL(random, boardWidth);
                 case 5: return CreateS(random, boardWidth);
                 case 6: return CreateZ(random, boardWidth);
-                default: throw new InvalidOperationException();
+                default: throw new ArgumentOutOfRangeException(nameof(shape), shape, "Unknown tetromino shape.");
             }
         }
 
